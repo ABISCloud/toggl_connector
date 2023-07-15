@@ -45,7 +45,6 @@ def process_data(data):
     for item in data:
         processed_item = {
             "User": item.get("user", ""),
-            "Email": "",  # Toggl Detailed Reports API does not return email
             "Client": item.get("client", ""),
             "Project": item.get("project", ""),
             "Description": item.get("description", ""),
@@ -54,7 +53,7 @@ def process_data(data):
             "Start time": item["start"].split('T')[1].split('+')[0] if "start" in item else "",
             "End date": item["end"].split('T')[0] if "end" in item else "",
             "End time": item["end"].split('T')[1].split('+')[0] if "end" in item else "",
-            "Duration": item.get("dur", ""),
+            "Duration_ms": item.get("dur", ""),
             "Tags": ", ".join(item["tags"]) if "tags" in item else ""
         }
         processed_data.append(processed_item)
