@@ -10,7 +10,7 @@ def get_workspaces(api_token):
         "Content-Type": "application/json",
     }
     response = requests.get(
-        'https://api.track.toggl.com/api/v8/workspaces',
+        'https://api.track.toggl.com/api/v9/workspaces',
         headers=headers,
         auth=(api_token, 'api_token')
     )
@@ -94,3 +94,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
