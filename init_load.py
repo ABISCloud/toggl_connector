@@ -1,11 +1,12 @@
-# Script to download data from Toggl and insert it into PostgreSQL
 import psycopg2
 import configparser
 import requests
 import json
 import os
 from datetime import datetime, timedelta
+from datetime import date
 import pandas as pd
+
 
 def get_workspaces(api_token):
     headers = {
@@ -67,38 +68,49 @@ def main():
     config.read('config.ini')
     api_token = config.get('Toggl', 'api_token')
     mode = config.get('Download', 'mode')
-    year = config.get('Payload', 'since')[0:4]
-
+    
     if mode == 'init':
-        since_date = config.get('Payload', 'since')
-        until_date = config.get('Payload', 'until')
+        since_date_str = config.get('Payload', 'since')
+        since_date = datetime.strptime(since_date_str, '%Y-%m-%d').date()
+        until_date_str = config.get('Payload', 'until')
+        until_date = datetime.strptime(until_date_str, '%Y-%m-%d').date()
+        
+        # Calculate the number of years to loop through
+        num_years = until_date.year - since_date.year + 1
+
+        all_data = []
+        for i in range(num_years):
+            start_year = since_date.year + i
+            end_year = start_year + 1
+            
+            start_date = date(start_year, since_date.month, since_date.day)
+            end_date = date(end_year, since_date.month, since_date.day) - timedelta(days=1)
+            
+            # Make sure we don't exceed the until_date
+            if end_date > until_date:
+                end_date = until_date
+            
+            start_date_str = start_date.strftime('%Y-%m-%d')
+            end_date_str = end_date.strftime('%Y-%m-%d')
+            
+            workspaces = get_workspaces(api_token)
+            data = []
+            for workspace in workspaces:
+                workspace_id = workspace['id']
+                report_data = get_detailed_report(api_token, workspace_id, start_date_str, end_date_str)
+                data.extend(report_data)
+                print(f'Inserted data for workspace {workspace_id} from {since_date} to {since_date.year + 1}')
+            
+            all_data.extend(data)
+        
+        df = process_data(all_data)
+        df.to_csv(f'toggl_data_init.csv', index=False)
+
     else:  # mode is 'recurring'
         days_back = config.getint('Download', 'recurring_days_back')
         until_date = datetime.today()
         since_date = (until_date - timedelta(days=days_back)).strftime('%Y-%m-%d')
         until_date = until_date.strftime('%Y-%m-%d')
 
-
-    host = config.get('PostgreSQL', 'host')
-    dbname = config.get('PostgreSQL', 'dbname')
-    user = config.get('PostgreSQL', 'user')
-    password = config.get('PostgreSQL', 'password')
-
-
-    workspaces = get_workspaces(api_token)
-    data = []
-    for workspace in workspaces:
-        workspace_id = workspace['id']
-        report_data = get_detailed_report(api_token, workspace_id, since_date, until_date)
-        data.extend(report_data)
-        print(f'Inserted data for workspace {workspace_id} from {since_date} to {until_date}')
-
-    df = process_data(data)
-    df.to_csv(f'toggl_data_{year}.csv', index=False)
-    print(df.head(100))
-
 if __name__ == "__main__":
     main()
-# save the data to a csv file
-
-
